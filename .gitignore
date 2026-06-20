@@ -12,3 +12,6 @@ npm-debug.log*
 # Logs / temp
 *.log
 tmp/
+
+# Local dev-server config (not needed for the published site)
+.claude/
