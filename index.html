@@ -130,7 +130,6 @@
 
 <div id="touch" class="hidden">
   <button class="tbtn" id="tLeft" aria-label="steer left">◀</button>
-  <button class="tbtn tjump" id="tJump" aria-label="jump">JUMP</button>
   <button class="tbtn" id="tRight" aria-label="steer right">▶</button>
 </div>
 
@@ -366,7 +365,7 @@ function togglePair(containerId, opts, isSel, onClick) {
 function updateControlHint() {
   const el = document.getElementById("controlHint");
   if (mobile) {
-    el.innerHTML = `Hold <b>◀ ▶</b> to steer &nbsp;•&nbsp; <b>JUMP</b> over obstacles &nbsp;•&nbsp; you auto-accelerate`;
+    el.innerHTML = `Hold <b>◀ ▶</b> to steer &nbsp;•&nbsp; <b>tap anywhere to jump</b> &nbsp;•&nbsp; you auto-accelerate`;
   } else {
     el.innerHTML = is3D()
       ? `<kbd>←</kbd><kbd>→</kbd> steer &nbsp;•&nbsp; <kbd>Space</kbd> jump over obstacles &nbsp;•&nbsp; <kbd>↑</kbd>/<kbd>↓</kbd> faster / slower`
@@ -389,7 +388,8 @@ function bindHold(id, on, off) {
 }
 bindHold("tLeft",  () => touch.steer = -1, () => { if (touch.steer < 0) touch.steer = 0; });
 bindHold("tRight", () => touch.steer = 1,  () => { if (touch.steer > 0) touch.steer = 0; });
-document.getElementById("tJump").addEventListener("pointerdown", (e) => { e.preventDefault(); if (game.state === "playing") wantJump = true; });
+// tap anywhere on the play area to jump (steer buttons capture their own taps)
+canvas.addEventListener("pointerdown", (e) => { if (game.state === "playing") wantJump = true; });
 function resetTouch() { touch.steer = 0; touch.brake = false; }
 
 // ----------------------------- GAME FLOW ---------------------------------
@@ -687,25 +687,47 @@ function draw3DGround() {
     ctx.ellipse(c.x + cw * 0.7, c.y + 4, cw * 0.62, cw * 0.36, 0, 0, 6.28);
     ctx.ellipse(c.x - cw * 0.7, c.y + 4, cw * 0.62, cw * 0.36, 0, 0, 6.28); ctx.fill();
   }
-  // distant rolling hills on the horizon
-  drawHills(hz, Math.max(30, H * 0.07), ENV.hillFar, 5);
-  drawHills(hz, Math.max(20, H * 0.045), ENV.hillNear, 8);
+  // distant rolling hills + a darker forest treeline silhouette
+  drawHills(hz, Math.max(34, H * 0.08), ENV.hillFar, 5);
+  drawHills(hz, Math.max(22, H * 0.05), ENV.hillNear, 8);
+  drawHills(hz, Math.max(13, H * 0.028), "#2f7d3a", 14);
   // grass verges
   const grass = ctx.createLinearGradient(0, hz, 0, H);
   grass.addColorStop(0, ENV.grassFar); grass.addColorStop(1, ENV.grassNear);
   ctx.fillStyle = grass; ctx.fillRect(0, hz, W, H - hz);
+  // mowed grass stripes (perspective, scrolling) — gives the verges life & motion
+  const gtotal = 1.2, goff = (scroll * 0.012) % gtotal;
+  for (let zc = goff; zc < Z_FAR; zc += gtotal) {
+    const a = project(0, zc + gtotal * 0.5), b = project(0, zc);
+    if (b.scale < 0.05) continue;
+    ctx.fillStyle = "rgba(20,60,20,0.10)"; ctx.fillRect(0, a.y, W, b.y - a.y);
+  }
+  // sandy shoulders just outside the road
+  ctx.fillStyle = "#c7b487";
+  const shN = nearHalf * 0.075;
+  for (const sgn of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(cx + sgn * 2, hz); ctx.lineTo(cx + sgn * nearHalf, H);
+    ctx.lineTo(cx + sgn * (nearHalf + shN), H); ctx.lineTo(cx + sgn * 4, hz);
+    ctx.closePath(); ctx.fill();
+  }
   // asphalt road (clean perspective trapezoid)
   const rg = ctx.createLinearGradient(0, hz, 0, H);
-  rg.addColorStop(0, shade(ENV.road, 0.16)); rg.addColorStop(0.5, ENV.road); rg.addColorStop(1, shade(ENV.road, -0.06));
+  rg.addColorStop(0, shade(ENV.road, 0.18)); rg.addColorStop(0.5, ENV.road); rg.addColorStop(1, shade(ENV.road, -0.05));
   ctx.fillStyle = rg;
   ctx.beginPath();
   ctx.moveTo(cx - 2, hz); ctx.lineTo(cx + 2, hz);
   ctx.lineTo(cx + nearHalf, H); ctx.lineTo(cx - nearHalf, H);
   ctx.closePath(); ctx.fill();
+  // soft sheen down the road
+  const roadPath = () => { ctx.beginPath(); ctx.moveTo(cx-2,hz); ctx.lineTo(cx+2,hz); ctx.lineTo(cx+nearHalf,H); ctx.lineTo(cx-nearHalf,H); ctx.closePath(); };
+  const sg = ctx.createRadialGradient(cx, H * 0.95, 0, cx, H * 0.95, nearHalf * 1.1);
+  sg.addColorStop(0, "rgba(255,255,255,0.07)"); sg.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = sg; roadPath(); ctx.fill();
   // solid white edge lines
-  ctx.strokeStyle = ENV.line; ctx.lineWidth = Math.max(1.5, W * 0.0022); ctx.lineJoin = "round";
-  ctx.beginPath(); ctx.moveTo(cx - 2, hz); ctx.lineTo(cx - nearHalf * 0.93, H); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx + 2, hz); ctx.lineTo(cx + nearHalf * 0.93, H); ctx.stroke();
+  ctx.strokeStyle = ENV.line; ctx.lineWidth = Math.max(1.6, W * 0.0024); ctx.lineJoin = "round";
+  ctx.beginPath(); ctx.moveTo(cx - 2, hz); ctx.lineTo(cx - nearHalf * 0.95, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx + 2, hz); ctx.lineTo(cx + nearHalf * 0.95, H); ctx.stroke();
   // scrolling centre dashes (perspective quads)
   ctx.fillStyle = ENV.dash;
   const total = 1.4, dashFrac = 0.5, zoff = (scroll * 0.012) % total;
@@ -715,6 +737,17 @@ function draw3DGround() {
     const wT = Math.max(0.6, nearHalf * a.scale * 0.03), wB = Math.max(1, nearHalf * b.scale * 0.03);
     ctx.beginPath(); ctx.moveTo(a.x - wT, a.y); ctx.lineTo(a.x + wT, a.y);
     ctx.lineTo(b.x + wB, b.y); ctx.lineTo(b.x - wB, b.y); ctx.closePath(); ctx.fill();
+  }
+  // reflective delineator posts down both sides (scrolling) — depth + speed cue
+  const ptotal = 1.8, poff = (scroll * 0.012) % ptotal;
+  for (let zc = poff; zc < Z_FAR; zc += ptotal) {
+    const sc = project(0, zc).scale; if (sc < 0.07) continue;
+    const ph = nearHalf * sc * 0.18, pw = Math.max(1.2, nearHalf * sc * 0.03);
+    for (const side of [-1.06, 1.06]) {
+      const p = project(side, zc);
+      ctx.fillStyle = "#ededed"; ctx.fillRect(p.x - pw/2, p.y - ph, pw, ph);
+      ctx.fillStyle = "#d23b35"; ctx.fillRect(p.x - pw/2, p.y - ph, pw, ph * 0.3);
+    }
   }
   // gentle atmospheric haze at the horizon
   const haze = ctx.createLinearGradient(0, hz, 0, hz + (H - hz) * 0.22);
