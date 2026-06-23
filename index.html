@@ -137,26 +137,8 @@
 <div id="menu" class="overlay">
   <h1>TURBO DASH</h1>
   <div class="panel">
-    <div class="section-title">Pick your racer</div>
-    <div id="skinChoices" class="choices"></div>
-    <div class="row" style="margin-top:18px">
-      <div>
-        <div class="section-title">View</div>
-        <div id="viewChoices" class="choices"></div>
-      </div>
-    </div>
-    <div class="row" style="margin-top:16px; gap:18px;">
-      <div>
-        <div class="section-title">Sound</div>
-        <div id="soundChoices" class="choices"></div>
-      </div>
-      <div>
-        <div class="section-title">Engine hum</div>
-        <div id="engineChoices" class="choices"></div>
-      </div>
-    </div>
+    <div class="hint">Race down the road — <b>jump</b> over obstacles, grab coins, and go as far as you can!</div>
   </div>
-  <div id="coinBal" class="hint" style="font-size:17px;font-weight:bold"></div>
   <button id="startBtn" class="btn">▶ START RACE</button>
   <div class="hint" id="controlHint"></div>
 </div>
@@ -183,11 +165,7 @@
 // kind "runner" → an animal/character that RUNS on the track (3D view)
 // In the Side view the emoji are used (flip mirrors a left-facing emoji).
 const SKINS = {
-  car:     { label: "Race Car", emoji: "🏎️", flip: true, kind: "car", color: "#e23b35", cost: 0 },
-  tiger:   { label: "Tiger",    emoji: "🐯", kind: "runner", head: "🐯", cost: 0 },
-  lion:    { label: "Lion",     emoji: "🦁", kind: "runner", head: "🦁", cost: 60 },
-  dino:    { label: "Dino",     emoji: "🦖", flip: true, kind: "runner", head: "🦖", cost: 150 },
-  creeper: { label: "Creeper",  emoji: "🟩", draw: drawCreeper, kind: "runner", head: "creeper", cost: 250 },
+  car: { label: "Race Car", emoji: "🏎️", flip: true, kind: "car", color: "#e23b35", cost: 0 },
 };
 const OBSTACLE_SHAPES = ["rock", "cone", "barrier", "hay"];
 const COIN = "🪙";
@@ -219,11 +197,9 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
-let storedMode = localStorage.getItem("turboDashMode");
-if (storedMode === "straight" || !VIEWS[storedMode]) storedMode = "3d";   // migrate old value
 const game = {
   state: "menu", running: false, paused: false,
-  skin: "car", mode: storedMode,
+  skin: "car", mode: "3d",
   best: Number(localStorage.getItem("turboDashBest") || 0),
 };
 const mobile = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
@@ -340,16 +316,8 @@ document.getElementById("soundBtn").onclick = toggleMute;
 
 // ----------------------------- MENU --------------------------------------
 function buildMenu() {
-  fillChoices("skinChoices", SKINS, "skin", (k, s) => s.emoji, (k, s) => s.label, null, true);
-  fillChoices("viewChoices", VIEWS, "mode", (k, v) => v.icon, (k, v) => v.label,
-    (k) => { game.mode = k; localStorage.setItem("turboDashMode", k); updateControlHint(); });
-  togglePair("soundChoices", [["on","🔊","On"],["off","🔇","Muted"]],
-    (val) => (val === "on") !== muted, (val) => { if ((val === "off") !== muted) toggleMute(); });
-  togglePair("engineChoices", [["off","🔈","Off"],["on","🏎️","On"]],
-    (val) => (val === "on") === engineOn, (val) => { if ((val === "on") !== engineOn) toggleEngine(); });
   document.getElementById("hudBest").textContent = Math.floor(game.best);
   document.getElementById("soundBtn").textContent = muted ? "🔇" : "🔊";
-  updateCoinBal();
   updateControlHint();
 }
 function fillChoices(containerId, obj, gameKey, iconFn, labelFn, onPick, lock) {
@@ -464,13 +432,11 @@ function updateCrash(dt) {
 }
 function gameOver() {
   game.state = "over"; game.running = false; stopEngine();
-  coinsBank += runCoins; saveProgress();
   if (score > game.best) { game.best = score; localStorage.setItem("turboDashBest", String(Math.floor(score))); }
   document.getElementById("finalScore").textContent = Math.floor(score);
   document.getElementById("goStats").innerHTML =
     `Distance: <b>${Math.floor(distance)}m</b> &nbsp;•&nbsp; Top speed: <b>${Math.floor(player.topSpeed * 20)} km/h</b><br>` +
-    `Coins this run: <b>💰 ${runCoins}</b> &nbsp;•&nbsp; ${goal && goal.done ? "✅ Goal complete!" : "Goal missed"} &nbsp;•&nbsp; Best: <b>${Math.floor(game.best)}</b><br>` +
-    `<span style="opacity:.8">Bank: 💰 ${coinsBank} — unlock racers & worlds on the menu</span>`;
+    `Coins: <b>💰 ${runCoins}</b> &nbsp;•&nbsp; ${goal && goal.done ? "✅ Goal complete!" : "Goal missed"} &nbsp;•&nbsp; Best: <b>${Math.floor(game.best)}</b>`;
   show("hud", false); show("pauseHint", false); show("soundBtn", false); show("touch", false); resetTouch();
   show("gameover", true);
 }
