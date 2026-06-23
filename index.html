@@ -130,10 +130,7 @@
 
 <div id="touch" class="hidden">
   <button class="tbtn" id="tLeft" aria-label="steer left">◀</button>
-  <div class="tcenter">
-    <button class="tbtn tjump" id="tJump" aria-label="jump">JUMP</button>
-    <button class="tbtn tbrake" id="tBrake" aria-label="slow down">SLOW</button>
-  </div>
+  <button class="tbtn tjump" id="tJump" aria-label="jump">JUMP</button>
   <button class="tbtn" id="tRight" aria-label="steer right">▶</button>
 </div>
 
@@ -401,11 +398,11 @@ function togglePair(containerId, opts, isSel, onClick) {
 function updateControlHint() {
   const el = document.getElementById("controlHint");
   if (mobile) {
-    el.innerHTML = `Hold <b>◀ ▶</b> steer &nbsp;•&nbsp; <b>JUMP</b> over obstacles &nbsp;•&nbsp; <b>SLOW</b> to brake &nbsp;•&nbsp; auto-accelerate`;
+    el.innerHTML = `Hold <b>◀ ▶</b> to steer &nbsp;•&nbsp; <b>JUMP</b> over obstacles &nbsp;•&nbsp; you auto-accelerate`;
   } else {
     el.innerHTML = is3D()
-      ? `<kbd>←</kbd><kbd>→</kbd> steer &nbsp;•&nbsp; <kbd>↑</kbd> faster &nbsp;•&nbsp; <kbd>↓</kbd> brake &nbsp;•&nbsp; <kbd>Space</kbd> JUMP over obstacles`
-      : `<kbd>↑</kbd><kbd>↓</kbd> move &nbsp;•&nbsp; <kbd>→</kbd> faster &nbsp;•&nbsp; <kbd>←</kbd> brake &nbsp;•&nbsp; <kbd>Space</kbd> JUMP over obstacles`;
+      ? `<kbd>←</kbd><kbd>→</kbd> steer &nbsp;•&nbsp; <kbd>Space</kbd> jump over obstacles &nbsp;•&nbsp; <kbd>↑</kbd>/<kbd>↓</kbd> faster / slower`
+      : `<kbd>↑</kbd><kbd>↓</kbd> move &nbsp;•&nbsp; <kbd>Space</kbd> jump over obstacles &nbsp;•&nbsp; <kbd>→</kbd>/<kbd>←</kbd> faster / slower`;
   }
 }
 document.getElementById("startBtn").onclick = startGame;
@@ -424,7 +421,6 @@ function bindHold(id, on, off) {
 }
 bindHold("tLeft",  () => touch.steer = -1, () => { if (touch.steer < 0) touch.steer = 0; });
 bindHold("tRight", () => touch.steer = 1,  () => { if (touch.steer > 0) touch.steer = 0; });
-bindHold("tBrake", () => touch.brake = true, () => touch.brake = false);
 document.getElementById("tJump").addEventListener("pointerdown", (e) => { e.preventDefault(); if (game.state === "playing") wantJump = true; });
 function resetTouch() { touch.steer = 0; touch.brake = false; }
 
@@ -535,7 +531,7 @@ function update(dt) {
   const boosting = boostTime > 0;
 
   // merged input: keyboard + on-screen touch buttons. On mobile we auto-accelerate.
-  const brakeBtn = !!(keys[brakeKey] || touch.brake);
+  const brakeBtn = !!keys[brakeKey];
   const accelBtn = !!keys[accelKey] || (mobile && !brakeBtn);
   let steer = 0;
   if (keys[negKey] || touch.steer < 0) steer = -1;
