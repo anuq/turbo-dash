@@ -469,9 +469,12 @@ function spawnCoin() {
 }
 const SCENERY = ["tree", "tree", "pine", "rock", "bush"];
 function spawnDecor() {
-  if (is3D()) decorItems.push({ lane: (Math.random() < 0.5 ? -1 : 1) * rnd(1.3, 2.3), z: Z_FAR,
-                                dk: pick(SCENERY), seed: Math.floor(rnd(0, 999)) });
-  else {
+  if (is3D()) {
+    // line both sides with several layered trees/bushes for a real roadside
+    const sides = Math.random() < 0.6 ? [-1, 1] : [Math.random() < 0.5 ? -1 : 1];
+    for (const sgn of sides)
+      decorItems.push({ lane: sgn * rnd(1.2, 3.1), z: Z_FAR, dk: pick(SCENERY), seed: Math.floor(rnd(0, 999)) });
+  } else {
     const top = Math.random() < 0.5;
     const y = top ? rnd(H*0.10, roadTop() - 30) : rnd(roadBottom() + 10, H - 20);
     decorItems.push({ x: W + 60, y, emoji: pick(SIDE_DECOR), size: rnd(34, 64), depth: top ? rnd(0.4,0.7) : 1.1 });
@@ -557,7 +560,7 @@ function update(dt) {
     spawnTimer = D ? rnd(1.3, 2.1) / Math.min(diff, 1.7) : rnd(0.55, 1.25) / Math.min(diff, 2.4);
   }
   coinTimer -= dt; if (coinTimer <= 0) { spawnCoin(); coinTimer = rnd(1.6, 3.2); }
-  decorTimer -= dt; if (decorTimer <= 0) { spawnDecor(); decorTimer = D ? rnd(0.5, 1.1) : rnd(0.3, 0.8); }
+  decorTimer -= dt; if (decorTimer <= 0) { spawnDecor(); decorTimer = D ? rnd(0.22, 0.5) : rnd(0.3, 0.8); }
 
   // Move world & cull
   if (D) {
@@ -695,20 +698,13 @@ function draw3DGround() {
   const grass = ctx.createLinearGradient(0, hz, 0, H);
   grass.addColorStop(0, ENV.grassFar); grass.addColorStop(1, ENV.grassNear);
   ctx.fillStyle = grass; ctx.fillRect(0, hz, W, H - hz);
-  // mowed grass stripes (perspective, scrolling) — gives the verges life & motion
-  const gtotal = 1.2, goff = (scroll * 0.012) % gtotal;
-  for (let zc = goff; zc < Z_FAR; zc += gtotal) {
-    const a = project(0, zc + gtotal * 0.5), b = project(0, zc);
-    if (b.scale < 0.05) continue;
-    ctx.fillStyle = "rgba(20,60,20,0.10)"; ctx.fillRect(0, a.y, W, b.y - a.y);
-  }
-  // sandy shoulders just outside the road
-  ctx.fillStyle = "#c7b487";
-  const shN = nearHalf * 0.075;
+  // a soft darker-grass verge hugging each side of the road (static, no flicker)
+  ctx.fillStyle = shade(ENV.grassNear, -0.1);
+  const vN = nearHalf * 0.12;
   for (const sgn of [-1, 1]) {
     ctx.beginPath();
     ctx.moveTo(cx + sgn * 2, hz); ctx.lineTo(cx + sgn * nearHalf, H);
-    ctx.lineTo(cx + sgn * (nearHalf + shN), H); ctx.lineTo(cx + sgn * 4, hz);
+    ctx.lineTo(cx + sgn * (nearHalf + vN), H); ctx.lineTo(cx + sgn * 4, hz);
     ctx.closePath(); ctx.fill();
   }
   // asphalt road (clean perspective trapezoid)
@@ -737,17 +733,6 @@ function draw3DGround() {
     const wT = Math.max(0.6, nearHalf * a.scale * 0.03), wB = Math.max(1, nearHalf * b.scale * 0.03);
     ctx.beginPath(); ctx.moveTo(a.x - wT, a.y); ctx.lineTo(a.x + wT, a.y);
     ctx.lineTo(b.x + wB, b.y); ctx.lineTo(b.x - wB, b.y); ctx.closePath(); ctx.fill();
-  }
-  // reflective delineator posts down both sides (scrolling) — depth + speed cue
-  const ptotal = 1.8, poff = (scroll * 0.012) % ptotal;
-  for (let zc = poff; zc < Z_FAR; zc += ptotal) {
-    const sc = project(0, zc).scale; if (sc < 0.07) continue;
-    const ph = nearHalf * sc * 0.18, pw = Math.max(1.2, nearHalf * sc * 0.03);
-    for (const side of [-1.06, 1.06]) {
-      const p = project(side, zc);
-      ctx.fillStyle = "#ededed"; ctx.fillRect(p.x - pw/2, p.y - ph, pw, ph);
-      ctx.fillStyle = "#d23b35"; ctx.fillRect(p.x - pw/2, p.y - ph, pw, ph * 0.3);
-    }
   }
   // gentle atmospheric haze at the horizon
   const haze = ctx.createLinearGradient(0, hz, 0, hz + (H - hz) * 0.22);
